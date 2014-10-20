@@ -281,6 +281,61 @@ class Container implements ContainerInterface
         $this->instances[$service] = $instance;
         return $this->instances[$service];
     }
+    
+    /**
+     *
+     * Updates a service object's instance. 
+     * If it doesnt exist yet, updates the service definition.
+     *
+     * @param string $service the service to update.
+     * 
+     * @param object|callable $val The service object; if a Closure, is treated as a
+     * Lazy.
+     *
+     * @throws Exception\ContainerLocked when the Container is locked.
+     *
+     * @throws Exception\ServiceNotObject
+     * 
+     * @throws Exception\ServiceNotFound when the requested service
+     * does not exist.
+     * 
+     * @return object
+     *
+     *
+     */
+    public function update($service, $val)
+    {
+        if ($this->isLocked()) {
+            throw new Exception\ContainerLocked;
+        }
+
+        if (! is_object($val)) {
+            throw new Exception\ServiceNotObject($service);
+        }
+        
+        // does the definition exist?
+        if (! $this->has($service)) {
+            throw new Exception\ServiceNotFound($service);
+        }
+        
+        if ($val instanceof Closure) {
+            $val = $this->factory->newLazy($val);
+        }
+        
+        // has it been instantiated? if yes, update instantiation alone
+        if (isset($this->instances[$service])) {
+            // lazy-load as needed
+            if ($val instanceof LazyInterface) {
+                $val = $val();
+            }
+            $this->instances[$service] = $val;
+            return $this->instances[$service];
+        }
+
+        //if not instantiated yet, update definition
+        $this->services[$service] = $val;
+        return $this->services[$service];
+    }
 
     /**
      *
